@@ -16,13 +16,14 @@ import Tooltip from '@mui/material/Tooltip';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
 import DeleteIcon from '@mui/icons-material/Delete';
-import FilterListIcon from '@mui/icons-material/FilterList';
+import Button from '@mui/material/Button';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import Box from '@mui/material/Box';
 import CrownJewel from "./CrownJewel";
+import TextField from '@mui/material/TextField';
 
 const headers = [
   {
@@ -71,8 +72,12 @@ const assetTypes = [
 ]
 
 function AssetTable({data}) {
+  const [dataShown, setDataShown] = useState(data)
   const [orderBy, setOrderBy] = useState('criticalityFactor')
   const [assetTypeFilter, setAssetTypeFilter] = useState([])
+  const [createdDateStartFilter, setCreatedDateStartFilter] = useState("")
+  const [createdDateEndFilter, setCreatedDateEndFilter] = useState("")
+  const [nameFilter, setNameFilter] = useState("")
 
   const formatDate = (dateString) => {
     const date = new Date(dateString)
@@ -93,17 +98,73 @@ function AssetTable({data}) {
     return res
   }
 
-  const handleChange = (event) => {
+  const handleAssetTypeChange = (event) => {
     const {
       target: { value },
     } = event;
     setAssetTypeFilter(
       typeof value === 'string' ? value.split(',') : value,
-    );
+    )
 
-  };
+  }
 
-  data.sort((a,b) => {
+  const handleDateStartChange = (event) => {
+    const {
+      target: { value },
+    } = event;
+    setCreatedDateStartFilter(value)
+  }
+
+  const handleDateEndChange = (event) => {
+    const {
+      target: { value },
+    } = event;
+    setCreatedDateEndFilter(value)
+  }
+
+  const handleNameChange = (event) => {
+    const {
+      target: { value },
+    } = event;
+    setNameFilter(value)
+  }
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    setDataShown(data.filter((d) => {
+      console.log('filtering', d.name)
+      if (nameFilter === "") {
+        console.log('empty name filter')
+        return d
+      }
+
+      if (d.name.includes(nameFilter)) {
+        console.log('name includes filter', nameFilter, d.name)
+        return d
+      }
+
+      return null
+    }).filter((d) => {
+      if (assetTypeFilter.length === 0) {
+        return d
+      } else if (assetTypeFilter.length > 0 && assetTypeFilter.includes(d.enrich.assetType)) {
+        return d
+      }
+
+      return null
+    }).filter((d) => {
+      if (createdDateStartFilter === "" && createdDateEndFilter === "") {
+        return d
+      } else if (createdDateStartFilter !== "" && createdDateStartFilter < d.created && 
+          (createdDateEndFilter === "" || (createdDateEndFilter !== "" && createdDateEndFilter > d.created))) {
+        return d
+      }
+
+      return null
+    }))
+  }
+
+  dataShown.sort((a,b) => {
     const temp = orderBy.split('.')
     if (temp.length > 1) {
       if (!b[temp[0]][temp[1]] || a[temp[0]][temp[1]] < b[temp[0]][temp[1]]) {
@@ -126,26 +187,61 @@ function AssetTable({data}) {
 
   return (
     <Box>
-      <FormControl sx={{ minWidth: 120 }}>
-        <InputLabel id="asset-type-filter-label">Asset Type</InputLabel>
-        <Select
-          labelId="asset-type-filter-label"
-          id="asset-type-filter"
-          multiple
-          value={assetTypeFilter}
-          label="Asset Type"
-          onChange={handleChange}
-        >
-          {assetTypes.map((type) => (
-            <MenuItem
-              key={type}
-              value={type}
-            >
-              {type}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <Typography variant="h6" sx={{m: 1}}>Filter by</Typography>
+      <Box>
+        <FormControl sx={{ minWidth: 120 }}>
+          <InputLabel id="asset-type-filter-label">Asset Type</InputLabel>
+          <Select
+            labelId="asset-type-filter-label"
+            id="asset-type-filter"
+            multiple
+            value={assetTypeFilter}
+            label="Asset Type"
+            onChange={handleAssetTypeChange}
+          >
+            {assetTypes.map((type) => (
+              <MenuItem
+                key={type}
+                value={type}
+              >
+                {type}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+      <Box sx={{p: 2}}>
+      <Typography>Created date between</Typography>
+        <FormControl sx={{ minWidth: 120 }}>
+          <TextField
+            name="createdStartDate"
+            type="date"
+            value={createdDateStartFilter}
+            onChange={handleDateStartChange}
+          />
+        </FormControl>
+        <Typography sx={{display: 'inline-flex', px: 1, mt: '15px'}}>-</Typography>
+        <FormControl sx={{ minWidth: 120 }}>
+          <TextField
+            name="createdEndDate"
+            type="date"
+            value={createdDateEndFilter}
+            onChange={handleDateEndChange}
+          />
+        </FormControl>
+      </Box>
+      <Box>
+        <FormControl sx={{ minWidth: 120 }}>
+          <TextField
+            name="nameFilter"
+            value={nameFilter}
+            label="Search by name"
+            onChange={handleNameChange}
+          />
+        </FormControl>
+      </Box>
+      <Button variant="contained" onClick={handleSubmit} sx={{mt: 2}}>Search</Button>
+
 
       <TableContainer>
 
@@ -159,15 +255,7 @@ function AssetTable({data}) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.filter((d) => {
-              if (assetTypeFilter.length === 0) {
-                return d
-              } else if (assetTypeFilter.length > 0 && assetTypeFilter.includes(d.enrich.assetType)) {
-                return d
-              }
-
-              return null
-            }).map((d) => (
+            {dataShown.map((d) => (
               <TableRow key={d._id}>
                 <TableCell>{d._id}</TableCell>
                 <TableCell>{formatDate(d.created)}</TableCell>
